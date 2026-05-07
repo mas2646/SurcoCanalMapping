@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Historical Urban Evolution - Lima</title>
+    
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body { 
+            background: #121212; 
+            font-family: 'Segoe UI', 'Helvetica Neue', sans-serif; 
+            color: white; 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            padding-bottom: 100px; 
+            scroll-behavior: smooth;
+        }
+        
+        /* Narrative Styling */
+        .narrative-section {
+            width: 100%;
+            max-width: 1200px;
+            padding: 60px 20px;
+            text-align: center;
+        }
+
+        .content-wrapper { width: 100%; }
+
+        .intro-text {
+            font-size: 1.4rem;
+            line-height: 1.6;
+            max-width: 800px;
+            margin: 0 auto 40px;
+            color: #e0e0e0;
+        }
+
+        .body-text {
+            font-size: 1.1rem;
+            line-height: 1.8;
+            color: #ccc;
+            margin-bottom: 40px;
+            max-width: 900px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .subtitle {
+            margin-top: 15px;
+            font-weight: bold;
+            color: #007bff;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .source-text { font-size: 0.8rem; color: #666; }
+
+        /* Split Slider Styling */
+        .comparison-container {
+            position: relative;
+            width: 100%;
+            height: 600px;
+            overflow: hidden;
+            border: 1px solid #333;
+            margin: 40px 0;
+        }
+
+        .comparison-slider { position: relative; width: 100%; height: 100%; }
+        .comparison-slider .img {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background-size: cover; background-position: center;
+        }
+
+        .background-img { z-index: 1; }
+        .foreground-img {
+            width: 50%;
+            z-index: 2;
+            border-right: 2px solid white;
+            overflow: hidden;
+        }
+
+        .slider {
+            position: absolute;
+            -webkit-appearance: none;
+            appearance: none;
+            width: 100%; height: 100%;
+            background: transparent;
+            outline: none; margin: 0;
+            z-index: 10; cursor: ew-resize; top: 0;
+        }
+
+        .slider::-webkit-slider-thumb {
+            -webkit-appearance: none; appearance: none;
+            width: 4px; height: 100%; background: white;
+        }
+
+        .slider-line {
+            position: absolute; left: 50%; top: 0;
+            width: 2px; height: 100%; background: white;
+            z-index: 5; pointer-events: none;
+        }
+
+        /* Prehispanic Grid */
+        .map-grid {
+            display: flex; gap: 20px; justify-content: center;
+            margin-top: 30px; flex-wrap: wrap;
+        }
+
+        .grid-item { flex: 1; min-width: 250px; max-width: 350px; }
+        .grid-item img {
+            width: 100%; border: 1px solid #444;
+            transition: transform 0.3s; border-radius: 4px;
+        }
+        .grid-item img:hover { transform: scale(1.05); border-color: #007bff; }
+        .grid-item span { display: block; margin-top: 10px; font-size: 0.9rem; color: #888; }
+
+        /* Main Georef Section */
+        #georef-main-section { 
+            display: flex; width: 100%; height: 85vh; 
+            border-bottom: 2px solid #444; border-top: 2px solid #444;
+            margin-top: 60px;
+        }
+
+        #leaflet-map { flex: 1; height: 100%; background: #000; position: relative; }
+        #map-sidebar { 
+            width: 320px; background: #181818; border-left: 1px solid #333; 
+            display: flex; flex-direction: column; padding: 20px; overflow-y: auto; gap: 20px;
+        }
+
+        .sidebar-title { 
+            font-size: 0.8rem; letter-spacing: 2px; color: #888; 
+            text-transform: uppercase; border-bottom: 1px solid #333; padding-bottom: 10px; 
+        }
+
+        .map-card { 
+            background: #222; border-radius: 4px; cursor: pointer; 
+            transition: all 0.3s; border: 1px solid #333; opacity: 0.7; 
+        }
+        .map-card.active { opacity: 1; border-color: #007bff; }
+        .map-card img { width: 100%; height: 110px; object-fit: cover; border-radius: 4px 4px 0 0; }
+        .map-card-label { padding: 10px; font-weight: 600; font-size: 0.9rem; }
+
+        .timeline-container {
+            position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); 
+            z-index: 1000; background: rgba(0,0,0,0.85); padding: 12px 40px; 
+            border-radius: 50px; display: flex; align-items: center; gap: 50px; 
+            border: 1px solid #444; backdrop-filter: blur(8px);
+        }
+
+        .timeline-point { font-weight: bold; font-size: 1.1rem; color: #666; cursor: pointer; transition: all 0.3s; }
+        .timeline-point.active { color: #007bff; transform: scale(1.1); }
+
+        /* General Sections */
+        .section { width: 90vw; max-width: 1200px; margin-top: 40px; text-align: center; }
+        .timeline-overview .map-viewport { width: 75%; aspect-ratio: 1 / 1; max-width: 675px; height: auto; border: 1px solid #333; overflow: hidden; background: #000; margin: 20px auto 0; }
+        .map-viewport { position: relative; width: 100%; height: 60vh; border: 1px solid #333; overflow: hidden; background: #000; margin-top: 20px; }
+        .layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background-size: cover; background-position: center; transition: opacity 0.3s; }
+
+        /* --- CINEMATIC ZOOM-IN CONFLICTS --- */
+        .conflicts-wrapper {
+            width: 100%;
+            background: #000;
+            margin-top: 80px;
+        }
+
+        .conflict-panel {
+            position: relative;
+            width: 100%;
+            min-height: 70vh;
+            cursor: pointer;
+            overflow: hidden;
+            border-bottom: 1px solid #222;
+            display: flex;
+            align-items: flex-end; /* Text at bottom */
+        }
+
+        .conflict-image {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed; /* Parallax effect */
+            transition: transform 1.2s cubic-bezier(0.2, 1, 0.3, 1);
+            z-index: 1;
+        }
+
+        .conflict-overlay {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(to top, rgba(0,0,0,0.9) 10%, rgba(0,0,0,0.3) 50%, rgba(0,0,0,0.1) 100%);
+            transition: background 0.6s ease;
+            z-index: 2;
+        }
+
+        .conflict-content {
+            position: relative;
+            z-index: 3;
+            width: 100%;
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 80px 40px;
+            pointer-events: none; /* Let click pass to panel */
+        }
+
+        .conflict-title {
+            font-size: 3rem;
+            font-weight: 200;
+            letter-spacing: 2px;
+            color: #fff;
+            margin-bottom: 15px;
+            transform: translateY(20px);
+            transition: transform 0.8s cubic-bezier(0.2, 1, 0.3, 1);
+            text-align: left;
+        }
+
+        .conflict-preview {
+            font-size: 0.9rem;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            color: #007bff;
+            opacity: 0;
+            transition: opacity 0.6s ease, transform 0.6s ease;
+            transform: translateY(10px);
+            text-align: left;
+        }
+
+        .conflict-body {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 1s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.8s ease;
+            opacity: 0;
+            width: 100%;
+            max-width: 800px;
+            text-align: left;
+        }
+
+        .conflict-body p {
+            font-size: 1.15rem;
+            line-height: 1.8;
+            color: #d0d0d0;
+            padding-top: 30px;
+            padding-bottom: 60px;
+        }
+
+        /* Hover States */
+        .conflict-panel:hover .conflict-image { transform: scale(1.05); }
+        .conflict-panel:hover .conflict-title { transform: translateY(0px); }
+        .conflict-panel:hover .conflict-preview { opacity: 1; transform: translateY(0px); }
+        
+        /* Expanded State */
+        .conflict-panel.expanded .conflict-body {
+            max-height: 1000px;
+            opacity: 1;
+        }
+
+        .conflict-panel.expanded .conflict-overlay {
+            background: rgba(0,0,0,0.85);
+        }
+
+        /* Rest of UI */
+        .sites-container { margin-top: 60px; border-top: 1px solid #444; padding-top: 40px; width: 90vw; max-width: 1200px; }
+        .tabs { display: flex; justify-content: center; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+        .tab-btn { padding: 10px 25px; background: #333; border: none; color: white; cursor: pointer; border-radius: 5px; font-weight: bold; transition: all 0.3s; }
+        .tab-btn.active { background: #007bff; }
+        .site-display { display: none; }
+        .site-display.active { display: block; }
+        .small-map { width: 100%; height: 450px; position: relative; border: 1px solid #555; background: #000; margin-top: 20px; }
+        .controls { padding: 20px 0; text-align: center; }
+        input[type=range] { width: 80%; cursor: pointer; accent-color: #007bff; max-width: 600px; }
+        .year-label { font-size: 1.2rem; margin-bottom: 10px; color: #aaa; }
+        h1 { margin-bottom: 20px; color: #e0e0e0; font-weight: 300; }
+
+        @media (max-width: 768px) {
+            .conflict-title { font-size: 2rem; }
+            .conflict-image { background-attachment: scroll; }
+            #georef-main-section { flex-direction: column; height: auto; }
+            #map-sidebar { width: 100%; flex-direction: row; overflow-x: auto; padding: 10px; }
+        }
+    </style>
+</head>
+<body>
+
+    <header class="narrative-section">
+        <p class="intro-text">
+            Lima is the second driest biggest city in the world, after El Cairo.<br>
+            Through the Surco and extensive canal system, water transformed the desert into inhabitable and agricultural land, several centuries ago.
+        </p>
+
+        <div class="comparison-container">
+            <div class="comparison-slider">
+                <div class="img background-img" style="background-image: url('0-landing/2-prehispanical-valley.jpg');"></div>
+                <div class="img foreground-img" style="background-image: url('0-landing/1-desert-valley.jpg');"></div>
+                <input type="range" min="1" max="100" value="50" class="slider" id="split-slider">
+                <div class="slider-line"></div>
+            </div>
+            <p class="subtitle">From desert to agriculture fields</p>
+        </div>
+    </header>
+
+    <section class="narrative-section">
+        <div class="content-wrapper">
+            <p class="body-text">
+                In pre-Hispanic Lima, hydraulic infrastructure structured territorial authority. Control over water distribution through the development of this system over the centuries, local curacas such as <strong>Taulichusco</strong> held power over the territory.
+            </p>
+            <div class="map-grid">
+                <div class="grid-item"><img src="1-prehispanic-maps/600-early-intermediate.JPG" alt="600"><span>600 - Early Intermediate</span></div>
+                <div class="grid-item"><img src="1-prehispanic-maps/1000-middle-horizon.JPG" alt="1000"><span>1000 - Middle Horizon</span></div>
+                <div class="grid-item"><img src="1-prehispanic-maps/1460-late-intermediate.JPG" alt="1460"><span>1460 - Late Intermediate</span></div>
+            </div>
+        </div>
+    </section>
+
+    <section class="narrative-section">
+        <div class="content-wrapper">
+            <p class="body-text">
+                The Surco Canal long predates the contemporary city of Lima. Constructed as part of a broader pre-Hispanic hydraulic network, the canal transformed an arid coastal territory into productive agricultural land and structured patterns of settlement, cultivation, and governance across the valley. For centuries, water infrastructure operated as the foundation of urban and territorial life in the desert landscape. By the late nineteenth century, Lima’s urban expansion began to absorb these agricultural landscapes into an increasingly consolidated urban fabric. As new roads, neighborhoods, and infrastructures emerged, the canal persisted within the growing city, gradually shifting from a territorial irrigation system into embedded urban infrastructure.
+            </p>
+        </div>
+    </section>
+
+    <div id="georef-main-section">
+        <div id="leaflet-map">
+            <div class="timeline-container">
+                <div id="tp-1873" class="timeline-point active" onclick="switchMap('1873')">1873</div>
+                <div id="tp-1898" class="timeline-point" onclick="switchMap('1898')">1898</div>
+                <div id="tp-1907" class="timeline-point" onclick="switchMap('1907')">1907</div>
+            </div>
+        </div>
+        <div id="map-sidebar">
+            <div class="sidebar-title">Historical Cartography</div>
+            <div class="opacity-control">
+                <label>Map Transparency</label>
+                <input type="range" id="map-opacity-slider" min="0" max="1" step="0.01" value="1" style="width: 100%;">
+            </div>
+            <div id="card-1873" class="map-card active" onclick="switchMap('1873')">
+                <img src="2-georreferenced-lima-maps/Small-1873.jpg" alt="1873"><div class="map-card-label">1873 Map</div>
+            </div>
+            <div id="card-1898" class="map-card" onclick="switchMap('1898')">
+                <img src="2-georreferenced-lima-maps/Small-1898.png" alt="1898"><div class="map-card-label">1898 Map</div>
+            </div>
+            <div id="card-1907" class="map-card" onclick="switchMap('1907')">
+                <img src="2-georreferenced-lima-maps/Small-1907.jpg" alt="1907"><div class="map-card-label">1907 Map</div>
+            </div>
+        </div>
+    </div>
+
+    <section class="narrative-section">
+        <div class="content-wrapper">
+            <p class="body-text">
+                As Lima expanded throughout the twentieth century, the Surco Canal became increasingly embedded within a dense urban fabric. Agricultural land gradually gave way to roads, housing developments, and metropolitan infrastructure, transforming the spatial and hydraulic conditions of the canal. While the canal continued to sustain parts of the city through irrigation and water distribution, urban growth progressively altered its course, edges, and capacity. These cumulative transformations laid the groundwork for new forms of environmental and spatial conflict along the canal system.
+            </p>
+        </div>
+    </section>
+
+    <div class="section timeline-overview">
+        <h1>Historical Timeline Overview</h1>
+        <div id="main-label" class="year-label">Year: 1944</div>
+        <div class="map-viewport">
+            <div class="layer" style="background-image: url('4-big-map-dates/1944_.jpg'); z-index: 1;"></div>
+            <div id="main-2001" class="layer" style="background-image: url('4-big-map-dates/2001_.jpg'); z-index: 2; opacity: 0;"></div>
+            <div id="main-2025" class="layer" style="background-image: url('4-big-map-dates/2025_.jpg'); z-index: 3; opacity: 0;"></div>
+        </div>
+        <div class="controls">
+            <input type="range" class="sync-slider" min="0" max="100" value="0">
+        </div>
+    </div>
+
+    <section class="narrative-section">
+        <div class="content-wrapper">
+            <p class="body-text">
+                Historically, the control and distribution of water in Lima’s valleys was closely tied to territorial governance, agricultural organization, and political authority under pre-Hispanic hydraulic systems. Over time, this integrated relationship fragmented through colonial and modern urban transformations, reducing the canal network to a secondary infrastructural role managed by dispersed institutions and irrigation commissions. The contemporary conflicts surrounding the Surco Canal emerge not only from physical urbanization, but also from the gradual weakening of coordinated water governance across the city.
+            </p>
+        </div>
+    </section>
+
+    <div class="conflicts-wrapper">
+        
+        <div class="conflict-panel" onclick="toggleConflict(this)">
+            <div class="conflict-image" style="background-image: url('5-zoom-in-conflicts/1-infrastructure-disruption.jpg');"></div>
+            <div class="conflict-overlay"></div>
+            <div class="conflict-content">
+                <div class="conflict-preview">Reveal Conflict Layer 01 / Click for more</div>
+                <h2 class="conflict-title">Infrastructure Disruption</h2>
+                <div class="conflict-body">
+                    <p>The expansion of metropolitan transportation infrastructure has progressively altered the spatial continuity and hydraulic logic of the Surco Canal. In areas intersected by the Metropolitano system, sections of the canal were diverted, constrained, or reconfigured to accommodate urban circulation and road infrastructure. These interventions prioritize metropolitan mobility over the existing water system, generating new conditions of hydraulic disruption and increasing vulnerability to flooding within the surrounding urban fabric.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="conflict-panel" onclick="toggleConflict(this)">
+            <div class="conflict-image" style="background-image: url('5-zoom-in-conflicts/2-protection-vs-downstream.jpg');"></div>
+            <div class="conflict-overlay"></div>
+            <div class="conflict-content">
+                <div class="conflict-preview">Reveal Conflict Layer 02 / Click for more</div>
+                <h2 class="conflict-title">Protection vs. Downstream Risk</h2>
+                <div class="conflict-body">
+                    <p>In response to informal urbanization and flood vulnerability along the canal edges, retaining walls and channel modifications have been constructed to protect specific communities and consolidate urban occupation. While these interventions reduce immediate risk in certain areas, they also narrow the hydraulic capacity of the canal and intensify flooding downstream. Protection becomes unevenly distributed, revealing how localized infrastructural decisions can transfer environmental vulnerability across the urban territory.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="conflict-panel" onclick="toggleConflict(this)">
+            <div class="conflict-image" style="background-image: url('5-zoom-in-conflicts/3-pollution-invisibilization.jpg');"></div>
+            <div class="conflict-overlay"></div>
+            <div class="conflict-content">
+                <div class="conflict-preview">Reveal Conflict Layer 03 / Click for more</div>
+                <h2 class="conflict-title">Pollution and Invisibilization</h2>
+                <div class="conflict-body">
+                    <p>As the Surco Canal approaches its outlet toward the Pacific Ocean, its hydraulic and ecological functions become increasingly degraded through pollution, wastewater discharge, and urban neglect. Once a visible and productive water infrastructure, the canal has gradually become embedded within dense urban conditions where its presence is often concealed, fragmented, or treated as residual space. This process of invisibilization reflects a broader disconnection between the contemporary city and the hydraulic systems that continue to sustain it.</p>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <div class="sites-container">
+        <p style="font-size: 1.5rem; text-align: center; margin-bottom: 20px;">Site-Specific View:</p>
+        <div class="tabs">
+            <button class="tab-btn active" onclick="openSite('metropolitano', event)">INFRASTRUCTURE</button>
+            <button class="tab-btn" onclick="openSite('curve', event)">PROTECTION</button>
+            <button class="tab-btn" onclick="openSite('mouth', event)">POLLUTION</button>
+        </div>
+
+        <div id="metropolitano" class="site-display active">
+            <div class="small-map" id="curve-map">
+                <div class="layer curve-layer-1944" style="background-image: url('6-zoom-in-map-dates/curve-zoomin/1944Curve.jpg'); z-index: 1;"></div>
+                <div class="layer curve-layer-1971" style="background-image: url('6-zoom-in-map-dates/curve-zoomin/1971Curve.jpg'); z-index: 2; opacity: 0;"></div>
+                <div class="layer curve-layer-2001" style="background-image: url('6-zoom-in-map-dates/curve-zoomin/2001Curve.jpg'); z-index: 3; opacity: 0;"></div>
+                <div class="layer curve-layer-2005" style="background-image: url('6-zoom-in-map-dates/curve-zoomin/2005Curve.jpg'); z-index: 4; opacity: 0;"></div>
+                <div class="layer curve-layer-2010" style="background-image: url('6-zoom-in-map-dates/curve-zoomin/2010Curve.jpg'); z-index: 5; opacity: 0;"></div>
+                <div class="layer curve-layer-2015" style="background-image: url('6-zoom-in-map-dates/curve-zoomin/2015Curve.jpg'); z-index: 6; opacity: 0;"></div>
+                <div class="layer curve-layer-2020" style="background-image: url('6-zoom-in-map-dates/curve-zoomin/2020Curve.jpg'); z-index: 7; opacity: 0;"></div>
+                <div class="layer curve-layer-2025" style="background-image: url('6-zoom-in-map-dates/curve-zoomin/2025Curve.jpg'); z-index: 8; opacity: 0;"></div>
+                <div class="layer curve-trace" style="background-image: url('6-zoom-in-map-dates/curve-zoomin/Curve_Trace.png'); z-index: 9; opacity: 0;"></div>
+            </div>
+            <div style="text-align: center; margin-top: 15px;">
+                <label style="color: #ccc; font-size: 0.9rem;">
+                    <input type="checkbox" id="toggle-curve-trace" style="margin-right: 8px;"> Show 2025 Canal trace
+                </label>
+            </div>
+        </div>
+
+        <div id="curve" class="site-display">
+            <div class="small-map" id="curve-map">
+                <div class="layer metro-layer-1944" style="background-image: url('6-zoom-in-map-dates/metro-zoomin/1944Metro.jpg'); z-index: 1;"></div>
+                <div class="layer metro-layer-1971" style="background-image: url('6-zoom-in-map-dates/metro-zoomin/1971Metro.jpg'); z-index: 2; opacity: 0;"></div>
+                <div class="layer metro-layer-2001" style="background-image: url('6-zoom-in-map-dates/metro-zoomin/2001Metro.jpg'); z-index: 3; opacity: 0;"></div>
+                <div class="layer metro-layer-2005" style="background-image: url('6-zoom-in-map-dates/metro-zoomin/2005Metro.jpg'); z-index: 4; opacity: 0;"></div>
+                <div class="layer metro-layer-2010" style="background-image: url('6-zoom-in-map-dates/metro-zoomin/2010Metro.jpg'); z-index: 5; opacity: 0;"></div>
+                <div class="layer metro-layer-2015" style="background-image: url('6-zoom-in-map-dates/metro-zoomin/2015Metro.jpg'); z-index: 6; opacity: 0;"></div>
+                <div class="layer metro-layer-2020" style="background-image: url('6-zoom-in-map-dates/metro-zoomin/2020Metro.jpg'); z-index: 7; opacity: 0;"></div>
+                <div class="layer metro-layer-2025" style="background-image: url('6-zoom-in-map-dates/metro-zoomin/2025Metro.jpg'); z-index: 8; opacity: 0;"></div>
+                <div class="layer metro-trace" style="background-image: url('6-zoom-in-map-dates/metro-zoomin/Metro_Trace.png'); z-index: 9; opacity: 0;"></div>
+            </div>
+            <div style="text-align: center; margin-top: 15px;">
+                <label style="color: #ccc; font-size: 0.9rem;">
+                    <input type="checkbox" id="toggle-metro-trace" style="margin-right: 8px;"> Show 2025 Canal trace
+                </label>
+            </div>
+        </div>
+
+        <div id="mouth" class="site-display">
+            <div class="small-map" id="mouth-map">
+                <div class="layer mouth-layer-1944" style="background-image: url('6-zoom-in-map-dates/mouth-zoomin/1944Mouth.jpg'); z-index: 1;"></div>
+                <div class="layer mouth-layer-1971" style="background-image: url('6-zoom-in-map-dates/mouth-zoomin/1971Mouth.jpg'); z-index: 2; opacity: 0;"></div>
+                <div class="layer mouth-layer-2001" style="background-image: url('6-zoom-in-map-dates/mouth-zoomin/2001Mouth.jpg'); z-index: 3; opacity: 0;"></div>
+                <div class="layer mouth-layer-2010" style="background-image: url('6-zoom-in-map-dates/mouth-zoomin/2010Mouth.jpg'); z-index: 4; opacity: 0;"></div>
+                <div class="layer mouth-layer-2015" style="background-image: url('6-zoom-in-map-dates/mouth-zoomin/2015Mouth.jpg'); z-index: 5; opacity: 0;"></div>
+                <div class="layer mouth-layer-2020" style="background-image: url('6-zoom-in-map-dates/mouth-zoomin/2020Mouth.jpg'); z-index: 6; opacity: 0;"></div>
+                <div class="layer mouth-layer-2025" style="background-image: url('6-zoom-in-map-dates/mouth-zoomin/2025Mouth.jpg'); z-index: 7; opacity: 0;"></div>
+                <div class="layer mouth-trace" style="background-image: url('6-zoom-in-map-dates/mouth-zoomin/Mouth_Trace.png'); z-index: 8; opacity: 0;"></div>
+            </div>
+            <div style="text-align: center; margin-top: 15px;">
+                <label style="color: #ccc; font-size: 0.9rem;">
+                    <input type="checkbox" id="toggle-mouth-trace" style="margin-right: 8px;"> Show 2025 Canal trace
+                </label>
+            </div>
+        </div>
+
+        <div class="controls">
+            <div id="site-label" class="year-label">Year: 1944</div>
+            <input type="range" class="site-timeline-slider" min="0" max="700" value="0">
+        </div>
+    </div>
+
+    <section class="narrative-section">
+        <div class="content-wrapper">
+            <p class="body-text">
+                Water in the Surco system has historically been a form of territorial and political control. From pre-Hispanic hydraulic logics to later irrigation organizations, governance structures were embedded in the distribution of water itself. Today, that continuity has fractured. Management is dispersed across multiple institutions, and the canal has been reclassified as secondary infrastructure within the urban system. This institutional fragmentation weakens coordinated control and produces overlapping jurisdictions, where no single authority fully governs the water body. The Surco Canal continues to sustain the city, feeding parks, agricultural remnants, and fragmented green systems that remain dependent on its flow. Yet its original territorial logic has been gradually eroded. What once functioned as an integrated hydraulic system now operates as a fragmented urban infrastructure, managed without unified control or recognition of its historical coherence.
+            </p>
+            <p class="body-text">
+                Authors:<br>
+                Miguel Angel Santivanez<br>
+                Jie-Enn Lee<br>
+                Amy Connor
+            </p>
+            <p class="body-text">
+                Methods in Spatial Research<br>
+                with Prof. Adam Vosburgh<br>
+                Columbia GSAPP 2026
+            </p>
+        </div>
+    </section>
+
+    <script>
+        // --- 1. CONFLICTS LOGIC ---
+        function toggleConflict(element) {
+            const isExpanded = element.classList.contains('expanded');
+            // Close others
+            document.querySelectorAll('.conflict-panel').forEach(p => p.classList.remove('expanded'));
+            // Toggle current
+            if (!isExpanded) {
+                element.classList.add('expanded');
+                // Smooth scroll to focus on the expanded content
+                element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        }
+
+        // --- 2. LEAFLET MAPS ---
+        var geoMap = L.map('leaflet-map').setView([-12.0464, -77.0428], 13);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { opacity: 0.3 }).addTo(geoMap);
+        var layers = {
+            '1873': L.tileLayer('2-georreferenced-lima-maps/tiles_1873_/{z}/{x}/{y}.png', {opacity: 1, zIndex: 10}).addTo(geoMap),
+            '1898': L.tileLayer('2-georreferenced-lima-maps/tiles_1898_/{z}/{x}/{y}.png', {opacity: 0, zIndex: 11}).addTo(geoMap),
+            '1907': L.tileLayer('2-georreferenced-lima-maps/tiles_1907_/{z}/{x}/{y}.png', {opacity: 0, zIndex: 12}).addTo(geoMap)
+        };
+        var currentActiveYear = '1873';
+
+        function switchMap(year) {
+            currentActiveYear = year;
+            var currentOpacity = document.getElementById('map-opacity-slider').value;
+            document.querySelectorAll('.map-card, .timeline-point').forEach(c => c.classList.remove('active'));
+            document.getElementById('card-' + year).classList.add('active');
+            document.getElementById('tp-' + year).classList.add('active');
+            Object.keys(layers).forEach(y => layers[y].setOpacity(y === year ? currentOpacity : 0));
+        }
+
+        document.getElementById('map-opacity-slider').addEventListener('input', e => layers[currentActiveYear].setOpacity(e.target.value));
+
+        // --- 3. TABS & SITE TIMELINE SLIDERS ---
+        function openSite(siteId, event) {
+            document.querySelectorAll('.site-display, .tab-btn').forEach(el => el.classList.remove('active'));
+            document.getElementById(siteId).classList.add('active');
+            event.currentTarget.classList.add('active');
+        }
+
+        // Site timeline data - different year arrays for mouth (7 years) vs others (8 years)
+        const siteYearsStandard = [1944, 1971, 2001, 2005, 2010, 2015, 2020, 2025];
+        const sitePositionsStandard = [0, 100, 200, 300, 400, 500, 600, 700];
+        
+        const siteYearsMouth = [1944, 1971, 2001, 2010, 2015, 2020, 2025];
+        const sitePositionsMouth = [0, 100, 200, 300, 400, 500, 600];
+
+        const siteTimelineSlider = document.querySelector('.site-timeline-slider');
+        siteTimelineSlider.addEventListener('input', function() {
+            let val = parseFloat(this.value);
+            
+            // Determine which site is active
+            const activeSite = document.querySelector('.site-display.active').id;
+            const isMouth = activeSite === 'mouth';
+            const siteYears = isMouth ? siteYearsMouth : siteYearsStandard;
+            const sitePositions = isMouth ? sitePositionsMouth : sitePositionsStandard;
+            
+            // Find which two years we're between
+            let lowerIdx = 0, upperIdx = 1;
+            for (let i = 0; i < sitePositions.length - 1; i++) {
+                if (val >= sitePositions[i] && val <= sitePositions[i + 1]) {
+                    lowerIdx = i;
+                    upperIdx = i + 1;
+                    break;
+                }
+            }
+            
+            let lowerYear = siteYears[lowerIdx];
+            let upperYear = siteYears[upperIdx];
+            let lowerPos = sitePositions[lowerIdx];
+            let upperPos = sitePositions[upperIdx];
+            
+            // Calculate opacity blend
+            let blend = (val - lowerPos) / (upperPos - lowerPos);
+            
+            // Update all layers for each site
+            const sites = ['curve', 'metro', 'mouth'];
+            sites.forEach(site => {
+                // Hide all year layers
+                const siteLayers = isMouth ? siteYearsMouth : siteYearsStandard;
+                siteLayers.forEach(year => {
+                    const layer = document.querySelector(`.${site}-layer-${year}`);
+                    if (layer) layer.style.opacity = '0';
+                });
+                
+                // Show the two adjacent years with blend
+                const lowerLayer = document.querySelector(`.${site}-layer-${lowerYear}`);
+                const upperLayer = document.querySelector(`.${site}-layer-${upperYear}`);
+                if (lowerLayer) lowerLayer.style.opacity = (1 - blend).toString();
+                if (upperLayer) upperLayer.style.opacity = blend.toString();
+            });
+            
+            // Update year label
+            let displayYear = lowerYear + Math.round(blend * (upperYear - lowerYear));
+            document.getElementById('site-label').innerText = `Year: ${displayYear}`;
+        });
+
+        // Trace layer toggles
+        document.getElementById('toggle-curve-trace').addEventListener('change', function() {
+            const traceLayer = document.querySelector('.curve-trace');
+            if (traceLayer) traceLayer.style.opacity = this.checked ? '1' : '0';
+        });
+
+        document.getElementById('toggle-metro-trace').addEventListener('change', function() {
+            const traceLayer = document.querySelector('.metro-trace');
+            if (traceLayer) traceLayer.style.opacity = this.checked ? '1' : '0';
+        });
+
+        document.getElementById('toggle-mouth-trace').addEventListener('change', function() {
+            const traceLayer = document.querySelector('.mouth-trace');
+            if (traceLayer) traceLayer.style.opacity = this.checked ? '1' : '0';
+        });
+
+        // Keep the old sync-slider logic for the Historical Timeline Overview section
+        const sliders = document.querySelectorAll('.sync-slider');
+        sliders.forEach(slider => {
+            slider.addEventListener('input', () => {
+                let val = slider.value;
+                sliders.forEach(s => s.value = val);
+                let op2001 = (val <= 50) ? (val / 50) : 1;
+                let op2025 = (val <= 50) ? 0 : ((val - 50) / 50);
+                let label = (val <= 50) ? "Comparing 1944 - 2001" : "Comparing 2001 - 2025";
+                document.getElementById('main-2001').style.opacity = op2001;
+                document.getElementById('main-2025').style.opacity = op2025;
+                document.getElementById('main-label').innerText = label;
+                document.querySelectorAll('.fade-2001').forEach(img => img.style.opacity = op2001);
+                document.querySelectorAll('.fade-2025').forEach(img => img.style.opacity = op2025);
+            });
+        });
+
+        document.getElementById('split-slider').addEventListener('input', e => {
+            document.querySelector('.foreground-img').style.width = e.target.value + '%';
+            document.querySelector('.slider-line').style.left = e.target.value + '%';
+        });
+    </script>
+</body>
+</html>
